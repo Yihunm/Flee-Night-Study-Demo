@@ -3,32 +3,50 @@ using UnityEngine;
 
 namespace FleeNightStudy
 {
-    /// <summary>运行时修复 TMP 字体引用，避免图集丢失导致 UI 不显示。</summary>
+    /// <summary>Runtime TMP font helper with safe fallbacks for cloned projects.</summary>
     public static class TmpFontHelper
     {
         const string ChineseFontResourcePath = "FleeNightStudy/ChineseUI SDF";
+        const string TmpDefaultFontResourcePath = "Fonts & Materials/LiberationSans SDF";
 
         static TMP_FontAsset _cachedUiFont;
+        static bool _warnedFallback;
+        static bool _warnedMissing;
 
         public static TMP_FontAsset ResolveUiFont()
         {
             if (_cachedUiFont != null && IsFontUsable(_cachedUiFont))
                 return _cachedUiFont;
 
-            var chinese = Resources.Load<TMP_FontAsset>(ChineseFontResourcePath);
-            if (TryUseUiFont(chinese))
+            if (TryUseUiFont(Resources.Load<TMP_FontAsset>(ChineseFontResourcePath)))
                 return _cachedUiFont;
 
-            var all = Resources.LoadAll<TMP_FontAsset>("FleeNightStudy");
+            if (TryUseUiFont(Resources.Load<TMP_FontAsset>(TmpDefaultFontResourcePath)))
+            {
+                WarnFallbackOnce();
+                return _cachedUiFont;
+            }
+
+            if (TryUseUiFont(TMP_Settings.defaultFontAsset))
+            {
+                WarnFallbackOnce();
+                return _cachedUiFont;
+            }
+
+            var all = Resources.LoadAll<TMP_FontAsset>(string.Empty);
             if (all != null)
             {
                 foreach (var font in all)
                 {
                     if (TryUseUiFont(font))
+                    {
+                        WarnFallbackOnce();
                         return _cachedUiFont;
+                    }
                 }
             }
 
+            WarnMissingOnce();
             return null;
         }
 
@@ -43,7 +61,7 @@ namespace FleeNightStudy
 
         public static bool IsChineseFontReady(TMP_FontAsset font)
         {
-            return IsFontUsable(font) && font.HasCharacter('按');
+            return IsFontUsable(font) && font.HasCharacter('中');
         }
 
         public static void ApplyDefaultFontRecursive(GameObject root)
@@ -53,10 +71,7 @@ namespace FleeNightStudy
 
             var font = ResolveUiFont();
             if (font == null)
-            {
-                Debug.LogWarning("[FleeNightStudy] 未找到中文字体 Resources/FleeNightStudy/ChineseUI SDF，请运行「紧急修复 TMP 字体」。");
                 return;
-            }
 
             EnsureFontCharacters(font, GameUiCopy.AllUiCharacters);
 
@@ -106,7 +121,6 @@ namespace FleeNightStudy
             tmp.ForceMeshUpdate(true);
         }
 
-        /// <summary>先绑定中文字体再赋值，避免 TMP 在 font 为空时抛 NullReferenceException。</summary>
         public static void SetUiText(TMP_Text tmp, string text)
         {
             if (tmp == null)
@@ -118,18 +132,12 @@ namespace FleeNightStudy
             {
                 ApplyUiFont(tmp, font);
                 EnsureFontCharacters(font, content);
-                tmp.text = content;
-            }
-            else
-            {
-                tmp.text = content;
-                Debug.LogWarning("[FleeNightStudy] 未找到中文字体，部分 UI 可能显示为方框。请运行「紧急修复 TMP 字体」。");
             }
 
+            tmp.text = content;
             tmp.ForceMeshUpdate(true);
         }
 
-        /// <summary>与课本提示行相同的 HUD 单行样式。</summary>
         public static void ApplyHintLine(TMP_Text line, string text)
         {
             SetUiText(line, text);
@@ -158,6 +166,27 @@ namespace FleeNightStudy
             {
                 return false;
             }
+        }
+
+        static void WarnFallbackOnce()
+        {
+            if (_warnedFallback)
+                return;
+
+            _warnedFallback = true;
+            Debug.LogWarning(
+                "[FleeNightStudy] ChineseUI SDF was not available. Falling back to another TMP font. " +
+                "Chinese text may not render correctly until the Chinese TMP font is regenerated.");
+        }
+
+        static void WarnMissingOnce()
+        {
+            if (_warnedMissing)
+                return;
+
+            _warnedMissing = true;
+            Debug.LogWarning(
+                "[FleeNightStudy] No usable TMP font was found. Import TMP Essentials or regenerate the Chinese TMP font.");
         }
     }
 }
