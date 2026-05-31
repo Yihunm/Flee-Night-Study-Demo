@@ -16,6 +16,7 @@
 *.controller text eol=lf
 *.anim text eol=lf
 *.overrideController text eol=lf
+*.asset text eol=lf
 
 # Large/binary assets via Git LFS
 *.png filter=lfs diff=lfs merge=lfs -text
@@ -44,4 +45,7 @@
 *.bytes filter=lfs diff=lfs merge=lfs -text
 *.dll filter=lfs diff=lfs merge=lfs -text
 *.unitypackage filter=lfs diff=lfs merge=lfs -text
-*.asset filter=lfs diff=lfs merge=lfs -text
+
+# Unity binary baked data
+Assets/AssetStoreOriginals/School/Scenes/MergeV2/LightingData.asset filter=lfs diff=lfs merge=lfs -text
+Assets/AssetStoreOriginals/School/Scenes/MergeV2/NavMesh.asset filter=lfs diff=lfs merge=lfs -text
